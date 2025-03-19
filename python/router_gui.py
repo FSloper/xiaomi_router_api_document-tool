@@ -4,6 +4,7 @@ from tkinter import ttk, messagebox
 
 import api_client
 from login_router import login_router
+from python.logger import RouterLogger
 
 
 class RouterDashboard:
@@ -25,17 +26,18 @@ class RouterDashboard:
         # 新增顶部工具栏
         self.toolbar = ttk.Frame(master)
         self.toolbar.pack(side=tk.TOP, fill=tk.X, padx=20, pady=5)
-        
+
         self.refresh_token_btn = ttk.Button(self.toolbar, text="刷新token", command=self.refresh_token)
         self.refresh_token_btn.pack(side=tk.LEFT, padx=5)
-        
+        RouterLogger.log_operation("GUI_OPERATION", "初始化主界面成功")
+
         # 新增Token显示文本框
         self.token_var = tk.StringVar(value=f"当前Token: {self.token}")
-        self.token_entry = ttk.Entry(self.toolbar, 
-                                   textvariable=self.token_var, 
-                                   width=40, 
-                                   state='readonly',
-                                   font=('Consolas', 10))
+        self.token_entry = ttk.Entry(self.toolbar,
+                                     textvariable=self.token_var,
+                                     width=40,
+                                     state='readonly',
+                                     font=('Consolas', 10))
         self.token_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
 
         self.rebot_btn = ttk.Button(self.toolbar, text="重启路由器", command=self.reboot)
@@ -138,20 +140,23 @@ class RouterDashboard:
 
     def refresh_token(self):
         """执行完整的token刷新流程"""
+        RouterLogger.log_operation("GUI_OPERATION", "用户点击刷新设备列表")
         try:
             new_token = login_router(self.router_ip, self.admin_pwd, self.encrypt_key)
-            
+
             if new_token and new_token != self.token:
                 self.token = new_token
                 self.token_var.set(f"当前Token: {self.token}")  # 更新文本框内容
                 messagebox.showinfo("刷新成功", "Token已更新，新token值:\n" + self.token)
-                print("New token:", self.token)  # 调试输出
+                RouterLogger.log_operation("New token:", self.token)
             elif new_token:
                 messagebox.showinfo("提示", "Token未变化，仍为当前有效token")
+                RouterLogger.log_operation("Token未变化", "Token未变化，仍为当前有效token")
             else:
                 raise Exception("API返回空token")
-                
+
         except Exception as e:
+            RouterLogger.log_error("刷新设备列表失败", e)
             messagebox.showerror("刷新失败", f"Token刷新失败:\n{str(e)}")
             print("Refresh error:", e)
 
@@ -160,7 +165,7 @@ class RouterDashboard:
             return
 
         self.rebot_btn.config(state=tk.DISABLED)
-        
+
         def reboot_task():
             try:
                 client = api_client.APIClient(
@@ -170,12 +175,13 @@ class RouterDashboard:
                     self.encrypt_key
                 )
                 response = client.reboot_router()
-                
+
                 if response.get('code') == 0:
-                    self.master.after(0, lambda: messagebox.showinfo("重启成功", "路由器正在重启，请等待3分钟后重新连接"))
+                    self.master.after(0,
+                                      lambda: messagebox.showinfo("重启成功", "路由器正在重启，请等待3分钟后重新连接"))
                 else:
                     raise Exception(f"API错误: {response.get('msg', '未知错误')}")
-            
+
             except Exception as e:
                 self.master.after(0, lambda: messagebox.showerror("重启失败", str(e)))
             finally:
@@ -190,6 +196,7 @@ class RouterDashboard:
             # 确保 self.precheck_data 不为 None 再调用 get 方法
             new_value = self.precheck_data.get(key, 'N/A') if self.precheck_data else 'N/A'
             lbl.config(text=f"{current_text}: {new_value}")
+
 
 class LoginWindow:
     def __init__(self, master):
@@ -227,6 +234,7 @@ class LoginWindow:
         print("Initializing timer")
 
         self._schedule_ip_check()
+
     # 由于 _schedule_ip_check 方法未定义，我们需要添加该方法的定义
     # 这里假设 _schedule_ip_check 方法的作用是在一定时间后执行 IP 检查
     # 我们可以在 LoginWindow 类中添加这个方法
@@ -256,7 +264,8 @@ class LoginWindow:
                     })
                 else:
                     self.master.after(0, self.status_label.config, {
-                        'text': '已发现设备,但设备异常,返回码:'+str(data.get('code', 'N/A'))+',错误信息:'+data.get('msg', 'N/A')+'.',
+                        'text': '已发现设备,但设备异常,返回码:' + str(
+                            data.get('code', 'N/A')) + ',错误信息:' + data.get('msg', 'N/A') + '.',
                         'foreground': 'red'
                     })
             except Exception as e:
@@ -280,14 +289,14 @@ class LoginWindow:
             if not self.pwd_entry.get().strip():  # 新增密码非空检查
                 messagebox.showerror("错误", "密码不能为空")
                 return
-                
+
             dashboard_window = tk.Toplevel(self.master)
             RouterDashboard(dashboard_window,
-                          self.ip_entry.get(),
-                          "预登录Token",
-                          self.pwd_entry.get(),
-                          self.key_entry.get(),
-                          precheck_data=self.precheck_data)
+                            self.ip_entry.get(),
+                            "预登录Token",
+                            self.pwd_entry.get(),
+                            self.key_entry.get(),
+                            precheck_data=self.precheck_data)
             self.master.destroy()
             return
 
@@ -302,6 +311,7 @@ class LoginWindow:
 
         token = login_router(ip, pwd, key)
         if token:
+            RouterLogger.log_operation("登录成功", "用户成功登录", success=True)
             self.master.destroy()
             root = tk.Tk()
             # 新增传递password和key参数
@@ -309,6 +319,7 @@ class LoginWindow:
             root.mainloop()
         else:
             messagebox.showerror("错误", "登录失败，请检查凭证")
+            RouterLogger.log_error("登录失败", token)
 
 
 if __name__ == "__main__":

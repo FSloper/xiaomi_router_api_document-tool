@@ -42,7 +42,6 @@ def get_router_info(ip):
 
 def login_router(ip, password, key):
     nonce = create_nonce()
-    # 强制使用新加密模式
     encrypt_mode = get_router_info(ip)
 
     # 生成加密密码
@@ -68,7 +67,7 @@ def login_router(ip, password, key):
             return result.get("token")
         else:
             print(f"登录失败: {result}")
-            return None
+            return result.get("msg")
 
     except Exception as e:
         print(f"请求异常: {str(e)}")

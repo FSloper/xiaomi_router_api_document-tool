@@ -1,8 +1,11 @@
-import requests
 import hashlib
 import json
 import time
 from typing import Optional, Dict, Any
+
+import requests
+
+from logger import RouterLogger
 from login_router import login_router
 
 NO_TOKEN_ENDPOINTS = {
@@ -13,6 +16,7 @@ NO_TOKEN_ENDPOINTS = {
     'xqsystem/get_languages',
     'xqsystem/get_main_language'
 }
+
 
 class APIClient:
     def __init__(self, router_ip: str, token: str, password: str, key: str):
@@ -38,34 +42,54 @@ class APIClient:
             params.update({
                 'client': 'web',
                 'lang': 'zh_cn',
-                '_': str(int(time.time()*1000))
+                '_': str(int(time.time() * 1000))
             })
             params['sign'] = self._generate_signature(params)
 
             response = self.session.request(method, url, data=json.dumps(params))
             response.raise_for_status()
-            
+
             result = response.json()
             if result.get('code') != 0:
                 raise APIError(result.get('msg', '未知错误'))
-            
+
             return result
         except requests.exceptions.RequestException as e:
+            RouterLogger.log_error(f"API请求失败: {endpoint}", e)
             raise APIError(f"请求失败: {str(e)}")
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            RouterLogger.log_error("响应解析失败", e)
             raise APIError("响应解析失败")
 
     def get_router_info(self) -> Dict[str, Any]:
         """获取路由器基本信息"""
-        return self._request('misystem/status')
+        try:
+            result = self._request('misystem/status')
+            RouterLogger.log_operation("API_CALL", "获取路由器基本信息成功")
+            return result
+        except Exception as e:
+            RouterLogger.log_error("获取路由器基本信息失败", e)
+            raise
 
     def get_network_status(self) -> Dict[str, Any]:
         """获取网络接口状态"""
-        return self._request('misystem/wan_info')
+        try:
+            result = self._request('misystem/wan_info')
+            RouterLogger.log_operation("API_CALL", "获取网络状态成功")
+            return result
+        except Exception as e:
+            RouterLogger.log_error("获取网络状态失败", e)
+            raise
 
     def get_connected_devices(self) -> Dict[str, Any]:
         """获取已连接设备列表"""
-        return self._request('misystem/devicelist')
+        try:
+            result = self._request('misystem/devicelist')
+            RouterLogger.log_operation("API_CALL", f"获取到{len(result.get('list', []))}台已连接设备")
+            return result
+        except Exception as e:
+            RouterLogger.log_error("获取设备列表失败", e)
+            raise
 
     def get_init_info(self) -> Dict[str, Any]:
         """获取路由器初始化信息"""
@@ -73,7 +97,7 @@ class APIClient:
 
     def reboot_router(self) -> dict:
         """执行路由器重启操作"""
-        return self._request('xqsystem/reboot', method='GET')  # 修改为 GET 请求
+        return self._request('xqsystem/reboot')
 
     def refresh_token(self) -> str:
         """自动刷新token并返回新token"""
@@ -84,8 +108,10 @@ class APIClient:
             return new_token
         return ""
 
+
 class APIError(Exception):
     """自定义API异常"""
+
     def __init__(self, message: str):
         super().__init__(message)
         self.message = message
