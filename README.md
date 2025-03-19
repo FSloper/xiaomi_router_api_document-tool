@@ -10,6 +10,24 @@
 
 **调用地址**: `/api/xqsystem/login`  
 
+```
+http://{ip}/cgi-bin/luci/api/xqsystem/login
+
+params = {
+    "username": "admin",
+    "password": 密码,
+    "logtype": "2",  # 新增必要参数
+    "nonce": nonce
+
+}
+```
+
+```
+key = 'a2ffa5c9be07488bbb04a3a47d3c5f6a'
+```
+
+
+
 **必须 Token**: `True`   
 
 **请求方式**: `GET`   
@@ -19,7 +37,7 @@
 参数名称 | 必须 | 默认值 | 备注
 -|-|-|-
 username | `True` | admin | 无
-password | `True` | 无 | 需要加密
+password | `True` | 无 | 需要加密(新:SHA256两次哈希,旧:SHA1两次哈希) 
 nonce | `True` | 无 | 无
 
 ### 返回值说明
@@ -29,6 +47,11 @@ nonce | `True` | 无 | 无
 code | 状态码 | 0 |
 url | 指向后台管理的主页 | 无 |
 token | 即 `stok` | 无 |
+
+```
+```
+
+
 
 -----
 
@@ -72,6 +95,33 @@ routerId | 设备 ID | 当前路由器的设备 ID (米家) |
 isRedmi | 是否为 Redmi | `1.True  0.False` |
 
 -----
+
+## 2.1.重启路由器
+
+**调用地址**: `/api/xqsystem/reboot`  
+
+**必须 Token**: `True`   
+
+**请求方式**: `GET`   
+
+### 返回值说明
+
+参数名称 | 解释 | 值 
+-|-|-
+code | 状态码 | 0 
+lanIp | IP地址 |      
+
+```
+{
+    "lanIp": [
+        {
+            "mask": "255.255.255.0",
+            "ip": "192.168.31.1"
+        }
+    ],
+    "code": 0
+}
+```
 
 ## 3. 获取工厂信息
 
