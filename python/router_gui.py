@@ -80,7 +80,7 @@ class RouterDashboard:
             '设备名称': {'width': 150},
             '上传速度': {'width': 100},
             '下载速度': {'width': 100},
-            '在线时长': {'width': 90}
+            '在线时长': {'width': 100}
         }
 
         for col, config in columns_config.items():
