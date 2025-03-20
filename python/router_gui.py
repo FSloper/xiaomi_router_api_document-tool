@@ -1,8 +1,11 @@
-import threading  # 导入 threading 模块
+import os
+import threading
+import time
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 import api_client
+import no_token_api
 from login_router import login_router
 from python.logger import RouterLogger
 
@@ -15,8 +18,6 @@ class RouterDashboard:
         self.admin_pwd = password
         self.encrypt_key = key
         self.precheck_data = precheck_data  # 接收预检测数据
-
-        # 立即更新基础信息
         if self.precheck_data:
             self._update_basic_info()
 
@@ -51,13 +52,15 @@ class RouterDashboard:
         self.labels = {}
         fields = [
             ("hardware", "硬件型号"),
+            ('language', '语言'),
             ("romversion", "固件版本"),
-            ("model", "设备型号"),
             ("countrycode", "国家代码"),
-            ("routername", "路由器名称"),
             ("id", "设备序列号"),
+            ("routername", "路由器名称"),
             ("display_name", "显示名称"),
-            ("mac", "MAC地址")
+            ("model", "设备型号"),
+            ('routerId', "米家ID")
+
         ]
 
         # 新增网络状态面板
@@ -158,13 +161,13 @@ class RouterDashboard:
         except Exception as e:
             RouterLogger.log_error("刷新设备列表失败", e)
             messagebox.showerror("刷新失败", f"Token刷新失败:\n{str(e)}")
-            print("Refresh error:", e)
 
     def reboot(self):
         if not messagebox.askyesno("确认重启", "确定要重启路由器吗？该操作需要约3分钟完成"):
             return
 
-        self.rebot_btn.config(state=tk.DISABLED)
+        self.rebot_btn.config(state=tk.DISABLED, style='Disabled.TButton')
+        RouterLogger.log_operation("GUI_OPERATION", "用户点击重启按钮，按钮已禁用")
 
         def reboot_task():
             try:
@@ -188,13 +191,51 @@ class RouterDashboard:
                 self.master.after(0, lambda: self.rebot_btn.config(state=tk.NORMAL))
 
         threading.Thread(target=reboot_task, daemon=True).start()
+        self._start_ip_monitoring()
+
+    def _start_ip_monitoring(self):
+        """启动IP可达性监控线程"""
+
+        def monitor_task():
+            RouterLogger.log_operation("IP_MONITOR", "开始持续检测路由器IP状态")
+            while True:
+                try:
+                    response = os.system(f"ping -n 1 -w 1000 {self.router_ip} >nul")
+                    if response == 0:
+                        RouterLogger.log_operation("IP_MONITOR", "检测到路由器已恢复在线")
+                        self.master.after(0, self._handle_router_recovered)
+                        break
+                    time.sleep(1)
+                except Exception as e:
+                    RouterLogger.log_error("IP监控异常", e)
+
+        threading.Thread(target=monitor_task, daemon=True).start()
+
+    def _handle_router_recovered(self):
+        """处理路由器恢复后的token刷新"""
+        try:
+            client = api_client.APIClient(
+                self.router_ip,
+                self.token,
+                self.admin_pwd,
+                self.encrypt_key
+            )
+            new_token = client.refresh_token()
+            if new_token:
+                self.token = new_token
+                self.token_var.set(f"当前Token: {self.token}")
+                messagebox.showinfo("系统恢复", "路由器已重启完成，新token已自动更新")
+                self.rebot_btn.config(state=tk.NORMAL, style='TButton')
+                RouterLogger.log_operation("GUI_OPERATION", "路由器恢复完成，按钮状态已重置")
+        except Exception as e:
+            messagebox.showerror("刷新失败", f"自动获取token失败:\n{str(e)}")
 
     def _update_basic_info(self):
         """更新基本信息面板的标签内容"""
         for key, lbl in self.labels.items():
             current_text = lbl['text'].split(':')[0]
             # 确保 self.precheck_data 不为 None 再调用 get 方法
-            new_value = self.precheck_data.get(key, 'N/A') if self.precheck_data else 'N/A'
+            new_value = self.precheck_data.key if self.precheck_data else 'N/A'
             lbl.config(text=f"{current_text}: {new_value}")
 
 
@@ -231,15 +272,10 @@ class LoginWindow:
 
         # 初始化定时器
         self.timer = None
-        print("Initializing timer")
 
         self._schedule_ip_check()
 
-    # 由于 _schedule_ip_check 方法未定义，我们需要添加该方法的定义
-    # 这里假设 _schedule_ip_check 方法的作用是在一定时间后执行 IP 检查
-    # 我们可以在 LoginWindow 类中添加这个方法
-    def _schedule_ip_check(self, event=None):
-        print("Scheduling IP check")
+    def _schedule_ip_check(self):
         if self.timer:
             self.master.after_cancel(self.timer)
         self.timer = self.master.after(500, self._check_ip_validity)
@@ -251,23 +287,9 @@ class LoginWindow:
 
         def check_task():
             try:
-                client = api_client.APIClient(ip, "", "", "")  # 临时客户端用于预检
+                client = no_token_api.NoTokenAPI(self.master, ip)
                 data = client.get_init_info()
-                if data.get('code') == 0:
-                    self.master.after(0, self._update_precheck_status, {
-                        'hardware': data.get('hardware', 'N/A'),
-                        'romversion': data.get('romversion', 'N/A'),
-                        'model': data.get('model', 'N/A'),
-                        'countrycode': data.get('countrycode', 'N/A'),
-                        'routername': data.get('routername', 'N/A'),
-                        'id': data.get('id', 'N/A')
-                    })
-                else:
-                    self.master.after(0, self.status_label.config, {
-                        'text': '已发现设备,但设备异常,返回码:' + str(
-                            data.get('code', 'N/A')) + ',错误信息:' + data.get('msg', 'N/A') + '.',
-                        'foreground': 'red'
-                    })
+                self.master.after(0, self._update_precheck_status, data)
             except Exception as e:
                 self.master.after(0, self.status_label.config, {
                     'text': f'未发现设备,请检查设备是否连接,IP地址是否正确.',
@@ -277,10 +299,9 @@ class LoginWindow:
         threading.Thread(target=check_task, daemon=True).start()
 
     def _update_precheck_status(self, data):
-        routername = data.get('routername', 'N/A')
+        routername = data.routername
         self.status_label.config(text="已发现路由器" + routername, foreground="green")
         self.precheck_data = data
-        print("Precheck data:", self.precheck_data)
 
     def do_login(self, event=None):
         """处理登录操作，添加双重验证"""
@@ -311,7 +332,7 @@ class LoginWindow:
 
         token = login_router(ip, pwd, key)
         if token:
-            RouterLogger.log_operation("登录成功", "用户成功登录", success=True)
+            RouterLogger.log_operation("登录成功", f"用户成功登录:{token}")
             self.master.destroy()
             root = tk.Tk()
             # 新增传递password和key参数

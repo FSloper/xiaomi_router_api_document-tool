@@ -50,10 +50,9 @@ class RouterLogger:
             return cls._instance
 
     @classmethod
-    def log_operation(cls, operation_type: str, details: str, success: bool = True):
+    def log_operation(cls, operation_type: str, details: str):
         logger = cls().logger
-        status = "SUCCESS" if success else "FAILED"
-        log_msg = f"{operation_type} - {status} - {details}"
+        log_msg = f"{operation_type} - {details}"
         logger.info(log_msg)
 
     @classmethod

@@ -36,8 +36,13 @@ def get_router_info(ip):
         data = response.json()
         return data.get("newEncryptMode", 0) != 0
     except Exception as e:
-        print(f"获取路由器信息失败: {str(e)}")
-        return False
+        print(f"获取路由器信息失败,无法获取路由器加密模式等信息: {str(e)}")
+        # 大部分新型号的路由器都是用新加密模式,所以默认返回True
+        encrypt_mode = input("请确认路由器是否使用新加密模式(0: 旧加密模式, 任意输入: 新加密模式): ")
+        if encrypt_mode == "0":
+            return False
+        else:
+            return True
 
 
 def login_router(ip, password, key):
@@ -52,7 +57,7 @@ def login_router(ip, password, key):
     params = {
         "username": "admin",
         "password": encrypted_pwd,
-        "logtype": "2",  # 新增必要参数
+        "logtype": "2",
         "nonce": nonce
 
     }
@@ -77,7 +82,7 @@ def login_router(ip, password, key):
 if __name__ == "__main__":
     router_ip = "192.168.31.1"  # 路由器管理IP
     router_password = input("请输入路由器密码: ")
-    router_key = "a2ffa5c9be07488bbb04a3a47d3c5f6a"  # 新机型似乎都需要,浏览器源码搜索"Encrypt"找到"key"对应值
+    router_key = "a2ffa5c9be07488bbb04a3a47d3c5f6a"  # 新机型似乎都需要,浏览器源码搜索"Encrypt"找到"key"对应值,默认都一样
 
     token = login_router(router_ip, router_password, router_key)
     if token:

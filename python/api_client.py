@@ -1,7 +1,7 @@
 import hashlib
 import json
 import time
-from typing import Optional, Dict, Any
+from typing import Optional
 
 import requests
 
@@ -32,7 +32,7 @@ class APIClient:
         sorted_params = '&'.join([f'{k}={v}' for k, v in sorted(data.items())])
         return hashlib.md5(f'{sorted_params}{self.encrypt_key}'.encode()).hexdigest()
 
-    def _request(self, endpoint: str, method: str = 'GET', params: Optional[dict] = None) -> Dict[str, Any]:
+    def _request(self, endpoint: str, method: str = 'GET', params: Optional[dict] = None) -> dict:
         """统一请求方法"""
         base_path = 'api/' if endpoint in NO_TOKEN_ENDPOINTS else f';stok={self.token}/api/'
         url = f'http://{self.router_ip}/cgi-bin/luci/{base_path}{endpoint}'
@@ -61,43 +61,45 @@ class APIClient:
             RouterLogger.log_error("响应解析失败", e)
             raise APIError("响应解析失败")
 
-    def get_router_info(self) -> Dict[str, Any]:
+    def get_router_info(self) -> dict:
         """获取路由器基本信息"""
         try:
             result = self._request('misystem/status')
-            RouterLogger.log_operation("API_CALL", "获取路由器基本信息成功")
+            RouterLogger.log_operation("API_CALL", f"获取路由器基本信息成功: {result}")
             return result
         except Exception as e:
             RouterLogger.log_error("获取路由器基本信息失败", e)
             raise
 
-    def get_network_status(self) -> Dict[str, Any]:
+    def get_network_status(self) -> dict:
         """获取网络接口状态"""
         try:
             result = self._request('misystem/wan_info')
-            RouterLogger.log_operation("API_CALL", "获取网络状态成功")
+            RouterLogger.log_operation("API_CALL", f"获取网络状态成功:{result}")
             return result
         except Exception as e:
             RouterLogger.log_error("获取网络状态失败", e)
             raise
 
-    def get_connected_devices(self) -> Dict[str, Any]:
-        """获取已连接设备列表"""
-        try:
-            result = self._request('misystem/devicelist')
-            RouterLogger.log_operation("API_CALL", f"获取到{len(result.get('list', []))}台已连接设备")
-            return result
-        except Exception as e:
-            RouterLogger.log_error("获取设备列表失败", e)
-            raise
-
-    def get_init_info(self) -> Dict[str, Any]:
+    def get_init_info(self) -> dict:
         """获取路由器初始化信息"""
         return self._request('xqsystem/init_info')
 
     def reboot_router(self) -> dict:
         """执行路由器重启操作"""
         return self._request('xqsystem/reboot')
+
+    def get_fac_info(self) -> dict:
+        """获取FAC信息"""
+        return self._request('xqsystem/fac_info')
+
+    def get_sys_info(self) -> dict:
+        """获取系统信息"""
+        return self._request('xqsystem/sys_info')
+
+    def get_languages(self) -> dict:
+        """获取支持的语言列表"""
+        return self._request('xqsystem/get_languages')
 
     def refresh_token(self) -> str:
         """自动刷新token并返回新token"""
