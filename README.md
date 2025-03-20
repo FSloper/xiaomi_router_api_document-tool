@@ -2,7 +2,11 @@
 
 -----
 
-> 因本人已不再使用小米路由器，所以本文档无限期搁置中... 欢迎大佬 Fork 之后继续扒 API
+> 原作者:"[azwhikaru](https://github.com/azwhikaru)"因本人已不再使用小米路由器，所以本文档无限期搁置中... 欢迎大佬 Fork 之后继续扒 API
+>
+> api调用实例参考项目,[Mirouterui](https://github.com/Mirouterui/mirouter-ui)
+>
+> 本项目介绍,python重构,其实Mirouterui已经很全面了,我就是有点闲.
 
 -----
 
