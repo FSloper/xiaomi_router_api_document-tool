@@ -13,7 +13,6 @@ class InitInfo:
     inited: bool
     connect = bool
     modules: str
-    replacement_assistant: bool
     hardware: str
     language: str
     romversion: str
@@ -24,7 +23,6 @@ class InitInfo:
     display_name: str
     maccel: bool
     model: str
-    disable_telnet: bool
     bound: bool
     router_id: str
     is_redmi: bool
@@ -75,16 +73,15 @@ class NoTokenAPI:
             data = self.client.get_init_info()
             self._validate_response(data,
                                     ['isSupportMesh', 'secAcc', 'inited', 'connect', 'modules',
-                                     'replacement_assistant', 'hardware', 'language', 'romversion',
+                                     'hardware', 'language', 'romversion',
                                      'countrycode', 'id', 'routername', 'displayName', 'maccel', 'model',
-                                     'DisableTencent', 'bound', 'routerId', 'isRedmi'])
+                                     'bound', 'routerId', 'isRedmi'])
             RouterLogger.log_operation("NoTokenAPI", f"成功获取初始化信息:{data}")
             return InitInfo(
                 is_support_mesh=bool(data.get('isSupportMesh', 0)),
                 sec_acc=bool(data.get('secAcc', 0)),
                 inited=bool(data.get('inited', 0)),
                 modules=data['modules'],
-                replacement_assistant=bool(data.get('replacement_assistant', 0)),
                 hardware=data['hardware'],
                 language=data['language'],
                 romversion=data['romversion'],
@@ -94,7 +91,6 @@ class NoTokenAPI:
                 display_name=data['displayName'],
                 maccel=bool(data.get('maccel', 0)),
                 model=data['model'],
-                disable_telnet=bool(data.get('DisableTencent', 0)),
                 bound=bool(data.get('bound', 0)),
                 router_id=data['routerId'],
                 is_redmi=bool(data.get('isRedmi', 0))

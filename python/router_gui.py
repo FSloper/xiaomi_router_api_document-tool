@@ -18,8 +18,6 @@ class RouterDashboard:
         self.admin_pwd = password
         self.encrypt_key = key
         self.precheck_data = precheck_data  # 接收预检测数据
-        if self.precheck_data:
-            self._update_basic_info()
 
         master.title("小米路由器监控系统")
         master.geometry("800x800")
@@ -48,20 +46,17 @@ class RouterDashboard:
         self.info_frame = ttk.LabelFrame(master, text="路由器基本信息")
         self.info_frame.pack(pady=20, padx=20, fill=tk.X)
 
-        # 初始化信息展示标签（使用enumerate优化布局）
-        self.labels = {}
-        fields = [
-            ("hardware", "硬件型号"),
-            ('language', '语言'),
-            ("romversion", "固件版本"),
-            ("countrycode", "国家代码"),
-            ("id", "设备序列号"),
-            ("routername", "路由器名称"),
-            ("display_name", "显示名称"),
-            ("model", "设备型号"),
-            ('routerId', "米家ID")
-
-        ]
+        self.init_info_labels = {
+            'hardware': self.create_init_info_labels("硬件型号:", 0),
+            'language': self.create_init_info_labels("语言:", 1),
+            'romversion': self.create_init_info_labels("固件版本:", 2),
+            'countrycode': self.create_init_info_labels("国家代码:", 3),
+            'id': self.create_init_info_labels("设备序列号:", 4),
+            'routername': self.create_init_info_labels("路由器名称:", 5),
+            'display_name': self.create_init_info_labels("显示名称:", 6),
+            'model': self.create_init_info_labels("设备型号:", 7),
+            'routerId': self.create_init_info_labels("米家ID:", 8)
+        }
 
         # 新增网络状态面板
         self.status_frame = ttk.LabelFrame(self.master, text="网络接口状态")
@@ -90,16 +85,6 @@ class RouterDashboard:
             'type': self.create_sys_label("内存类型", 4)
         }
 
-        for row_idx in range((len(fields) + 1) // 2):
-            for col_idx in range(2):
-                if (index := row_idx * 2 + col_idx) >= len(fields):
-                    break
-                key, text = fields[index]
-                # 初始化时根据预检数据填充
-                init_text = f"{text}: {self.precheck_data.get(key, '加载中...')}" if self.precheck_data else "加载中..."
-                lbl = ttk.Label(self.info_frame, text=init_text)
-                lbl.grid(row=row_idx, column=col_idx, sticky=tk.W, padx=10, pady=5)
-                self.labels[key] = lbl
         # 新增设备列表面板
         self.device_frame = ttk.LabelFrame(master, text="连接设备列表")
         self.device_frame.pack(pady=10, padx=20, fill=tk.BOTH, expand=True)
@@ -128,6 +113,19 @@ class RouterDashboard:
         self.device_tree.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.device_tree.pack(fill=tk.BOTH, expand=True)
+
+        if self.precheck_data:
+            self._update_basic_info()
+        else:
+            # Bug修复: 将字符串转换为Exception对象
+            RouterLogger.log_error("Invalid precheck_data format",
+                                   exception=Exception("Expected dict got " + str(type(self.precheck_data))))
+
+    def create_init_info_labels(self, text, row):
+        """创建统一格式的状态标签"""
+        lbl = ttk.Label(self.info_frame, text=f"{text}: 加载中...")
+        lbl.grid(row=row, column=0, sticky=tk.W, padx=10, pady=5)
+        return lbl
 
     def create_status_label(self, text, row):
         """创建统一格式的状态标签"""
@@ -232,11 +230,16 @@ class RouterDashboard:
 
     def _update_basic_info(self):
         """更新基本信息面板的标签内容"""
-        for key, lbl in self.labels.items():
-            current_text = lbl['text'].split(':')[0]
-            # 确保 self.precheck_data 不为 None 再调用 get 方法
-            new_value = self.precheck_data.key if self.precheck_data else 'N/A'
-            lbl.config(text=f"{current_text}: {new_value}")
+        try:
+            # self.init_info_labels['key'].config(text=f"{label}: {value}")
+            for key, label in self.init_info_labels.items():
+                label_text = label.cget("text").split(":")[0]
+                value = getattr(self.precheck_data, key)
+                self.init_info_labels[key].config(text=f"{label_text}: {value}")
+            RouterLogger.log_operation("GUI_UPDATE", "基本信息面板更新完成")
+        except Exception as e:
+            RouterLogger.log_error("基本信息更新失败", e)
+            # messagebox.showerror("更新错误", "基本信息加载失败，请检查数据源")
 
 
 class LoginWindow:
@@ -249,7 +252,7 @@ class LoginWindow:
         self.ip_entry = ttk.Entry(master)
         self.ip_entry.grid(row=0, column=1, padx=10, pady=5)
         self.ip_entry.insert(0, "192.168.31.1")
-        self.ip_entry.bind("<KeyRelease>", self._schedule_ip_check)
+        # self.ip_entry.bind("<KeyRelease>", self._schedule_ip_check)
 
         ttk.Label(master, text="管理员密码:").grid(row=1, padx=10, pady=5, sticky=tk.W)
         self.pwd_entry = ttk.Entry(master, show="*")
@@ -263,8 +266,6 @@ class LoginWindow:
 
         self.login_btn = ttk.Button(master, text="登录", command=self.do_login)
         self.login_btn.grid(row=3, columnspan=2, pady=20)
-        # 回车键绑定
-        self.master.bind("<Return>", self.do_login)
 
         # 添加状态提示标签
         self.status_label = ttk.Label(master, text="", foreground="gray", wraplength=380)
@@ -285,43 +286,35 @@ class LoginWindow:
         if not ip:
             return
 
-        def check_task():
-            try:
-                client = no_token_api.NoTokenAPI(self.master, ip)
-                data = client.get_init_info()
-                self.master.after(0, self._update_precheck_status, data)
-            except Exception as e:
-                self.master.after(0, self.status_label.config, {
-                    'text': f'未发现设备,请检查设备是否连接,IP地址是否正确.',
-                    'foreground': 'orange'
-                })
-
-        threading.Thread(target=check_task, daemon=True).start()
+        try:
+            client = no_token_api.NoTokenAPI(self.master, ip)
+            data = client.get_init_info()
+            self.master.after(0, self._update_precheck_status, data)
+            print(f"结束检查IP:{data}")
+        except Exception as e:
+            self.master.after(0, self.status_label.config, {
+                'text': f'未发现设备,请检查设备是否连接,IP地址是否正确.',
+                'foreground': 'orange'
+            })
+        # def check_task():
+        #     try:
+        #         client = no_token_api.NoTokenAPI(self.master, ip)
+        #         data = client.get_init_info()
+        #         self.master.after(0, self._update_precheck_status, data)
+        #         print(f"结束检查IP:{data}")
+        #     except Exception as e:
+        #         self.master.after(0, self.status_label.config, {
+        #             'text': f'未发现设备,请检查设备是否连接,IP地址是否正确.',
+        #             'foreground': 'orange'
+        #         })
+        #
+        # threading.Thread(target=check_task, daemon=True).start()
 
     def _update_precheck_status(self, data):
-        routername = data.routername
-        self.status_label.config(text="已发现路由器" + routername, foreground="green")
+        self.status_label.config(text="已发现路由器" + data.routername, foreground="green")
         self.precheck_data = data
 
-    def do_login(self, event=None):
-        """处理登录操作，添加双重验证"""
-        # 优先使用预检测数据时的验证
-        if hasattr(self, 'precheck_data') and self.precheck_data:
-            if not self.pwd_entry.get().strip():  # 新增密码非空检查
-                messagebox.showerror("错误", "密码不能为空")
-                return
-
-            dashboard_window = tk.Toplevel(self.master)
-            RouterDashboard(dashboard_window,
-                            self.ip_entry.get(),
-                            "预登录Token",
-                            self.pwd_entry.get(),
-                            self.key_entry.get(),
-                            precheck_data=self.precheck_data)
-            self.master.destroy()
-            return
-
-        # 普通登录流程验证
+    def do_login(self):
         ip = self.ip_entry.get()
         pwd = self.pwd_entry.get()
         key = self.key_entry.get()
@@ -336,7 +329,7 @@ class LoginWindow:
             self.master.destroy()
             root = tk.Tk()
             # 新增传递password和key参数
-            RouterDashboard(root, ip, token, pwd, key)
+            RouterDashboard(root, ip, token, pwd, key, self.precheck_data)
             root.mainloop()
         else:
             messagebox.showerror("错误", "登录失败，请检查凭证")
