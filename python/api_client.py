@@ -89,6 +89,10 @@ class APIClient:
         """执行路由器重启操作"""
         return self._request('xqsystem/reboot')
 
+    def shutdown_sys(self) -> dict:
+        """设置路由器关机"""
+        return self._request('xqsystem/shutdown')
+
     def get_fac_info(self) -> dict:
         """获取FAC信息"""
         return self._request('xqsystem/fac_info')
@@ -110,6 +114,13 @@ class APIClient:
             return new_token
         return ""
 
+    def get_lan_wan_status(self) -> dict:
+        """获取局域网和WAN状态"""
+        return self._request('xqsystem/lan_wan')
+
+    def get_sys_status(self) -> dict:
+        """获取系统状态"""
+        return self._request('misystem/status')
 
 class APIError(Exception):
     """自定义API异常"""

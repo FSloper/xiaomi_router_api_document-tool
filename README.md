@@ -185,28 +185,30 @@ token | 即 `stok` | 无 |
 
 ### 返回值说明
 
-参数名称 | 解释 | 值 |
--|-|-|
-code | 状态码 | 0 |
-isSupportMesh | 是否支持 Mesh | `1.True  0.False` |
-secAcc | 未知 | `1.True  0.False`|
-inited | 已初始化 | `1.True  0.False` |
-connect | 未知 | `1.True  0.False` |
-modules | 未知 | `1.True  0.False` |
-replacement_assistant | 未知 | `1.True  0.False` |
-hardware | 硬件 | 当前硬件 |
-language | 系统语言 | 当前系统语言 |
-romversion | 固件版本 | 当前固件版本 |
-countrycode | 国家代码 | 当前国家代码 |
-id | 路由器序列号 | 当前路由器序列号 |
-routername | 路由器名称 | 当前路由器名称 |
-displayName | 显示名称 | 当前显示名称 |
-maccel | 未知 | `1.True  0.False` |
-model | 机型 | 当前机型 |
-DisableTencent | 未知 | `1.True  0.False` |
-bound | 未知 | `1.True  0.False` |
-routerId | 设备 ID | 当前路由器的设备 ID (米家) |
-isRedmi | 是否为 Redmi | `1.True  0.False` |
+参数名称 | 解释 | 值 
+-|-|-
+code | 状态码 | 0 
+isSupportMesh | 是否支持 Mesh | `1.True  0.False` 
+secAcc | 安全加速 | `1.True  0.False`
+inited | 已初始化 | `1.True  0.False` 
+connect | 未知 | `1.True  0.False` 
+modules | 未知 | `1.True  0.False` 
+replacement_assistant | 未知 | `1.True  0.False` 
+hardware | 硬件 | 当前硬件 
+language | 系统语言 | 当前系统语言 
+romversion | 固件版本 | 当前固件版本 
+countrycode | 国家代码 | 当前国家代码 
+id | 路由器序列号 | 当前路由器序列号 
+routername | 路由器名称 | 当前路由器名称 
+displayName | 显示名称 | 当前显示名称 
+maccel | 未知 | `1.True  0.False` 
+model | 机型 | 当前机型 
+DisableTencent | 未知 | `1.True  0.False` 
+bound | 未知 | `1.True  0.False` 
+routerId | 设备 ID | 当前路由器的设备 ID (米家) 
+isRedmi | 是否为 Redmi | `1.True  0.False` 
+support160M | 是否支持160Mhz频宽 | `1.True  0.False` 
+
 
 ```json
 {
