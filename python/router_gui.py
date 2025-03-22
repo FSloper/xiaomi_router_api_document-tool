@@ -82,12 +82,11 @@ class RouterDashboard:
             ('hz_cpu', "CPU频率"),
             ('core', "核心数"),
             ('temperature', "温度"),
-            ('upTime', "运行时间"),
             ('mac', "MAC地址")
         ]
         self.init_info_labels = {
         }
-        put_label_in_frame(init_info_definitions, self.init_info_labels, self.info_frame, 2)
+        put_label_in_frame(init_info_definitions, self.init_info_labels, self.info_frame, 3)
 
         # 新增网络状态面板
         self.status_frame = ttk.LabelFrame(self.master, text="网络接口状态")
@@ -107,6 +106,7 @@ class RouterDashboard:
         self.system_frame.pack(pady=10, padx=20, fill=tk.X)
 
         sys_definitions = [
+            ('upTime', "运行时间"),
             ('mem', "内存使用"),
             ('devices', "在线设备"),
             ('wan_speed', "WAN 速度"),
@@ -145,21 +145,33 @@ class RouterDashboard:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.device_tree.pack(fill=tk.BOTH, expand=True)
 
-        if self.precheck_data:
-            self._update_basic_data(self.init_info_labels, self.precheck_data)
-            data = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_sys_status()
-            self._update_basic_data(self.init_info_labels, data)
-            informationdata = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_information()
-            self._update_basic_data(self.net_labels, informationdata)
-        else:
-            # Bug修复: 将字符串转换为Exception对象
-            RouterLogger.log_error("Invalid precheck_data format",
-                                   exception=Exception("Expected dict got " + str(type(self.precheck_data))))
-
+        self.up_basic_data()
         self.up_net_data()
 
+    def up_basic_data(self):
+        def _update_basic_data():
+            if self.precheck_data:
+                self._update_basic_data(self.init_info_labels, self.precheck_data)
+                data = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_sys_status()
+                self._update_basic_data(self.init_info_labels, data)
+                informationdata = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_information()
+                self._update_basic_data(self.net_labels, informationdata)
+            else:
+                # Bug修复: 将字符串转换为Exception对象
+                RouterLogger.log_error("Invalid precheck_data format",
+                                       exception=Exception("Expected dict got " + str(type(self.precheck_data))))
+
+        threading.Thread(target=_update_basic_data, daemon=True).start()
+
     def up_net_data(self):
-        data = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_sys_status()
+        def _update_net_data():
+            if self.precheck_data:
+                self._update_basic_data(self.net_labels, self.precheck_data)
+                informationdata = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_information()
+                self._update_basic_data(self.net_labels, informationdata)
+            threading.Timer(5, _update_net_data).start()
+
+        threading.Thread(target=_update_net_data, daemon=True).start()
 
     def refresh_token(self):
         """执行完整的token刷新流程"""
