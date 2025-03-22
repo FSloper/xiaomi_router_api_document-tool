@@ -122,6 +122,10 @@ class APIClient:
         """获取系统状态"""
         return self._request('misystem/status')
 
+    def get_information(self) -> dict:
+        """获取路由器信息"""
+        return self._request('xqsystem/information')
+
 class APIError(Exception):
     """自定义API异常"""
 

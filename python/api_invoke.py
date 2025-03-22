@@ -67,33 +67,37 @@ class WanStatus:
 @dataclass
 class SysStatus:
     dev: str
-
     usage: str
     total: str
     hz_ddr: str
     type: str
     temperature: str
-
     online: str
     all: str
-
     mac: str
     platform: str
     version: str
     channel: str
     sn: str
     displayName: str
-
     upTime: str
     core: str
     hz_cpu: str
-
     download: str
     downspeed: str
     maxdownloadspeed: str
     upload: str
     upspeed: str
     maxuploadspeed: str
+
+
+@dataclass
+class Information:
+    lan_ip: str
+    wanType: str
+    wan_ip: str
+    dnsAddrs: str
+    dnsAddrs1: str
 
 
 def _validate_response(data: Dict, required_fields: list) -> None:
@@ -253,4 +257,20 @@ class NeedTokenAPI:
             )
         except Exception as e:
             RouterLogger.log_error("获取系统状态失败", e)
+            raise
+
+    def get_information(self) -> Information:
+        try:
+            data = self.client.get_information()
+            _validate_response(data, ['lan_ip', 'wanType', 'wan_ip', 'dnsAddrs', 'dnsAddrs1'])
+            RouterLogger.log_operation("NeedTokenAPI", f"成功获取信息:{data}")
+            return Information(
+                lan_ip=data['lan']['ipv4'][0]['ip'],
+                wanType=data['wan']['details']['wanType'],
+                wan_ip=data['wan']['gateWay'],
+                dnsAddrs=data['wan']['dnsAddrs'],
+                dnsAddrs1=data['wan']['dnsAddrs1']
+            )
+        except Exception as e:
+            RouterLogger.log_error("获取信息失败", e)
             raise

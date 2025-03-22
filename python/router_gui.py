@@ -50,7 +50,7 @@ class RouterDashboard:
         RouterLogger.log_operation("GUI_OPERATION", "初始化主界面成功")
 
         # 新增Token显示文本框
-        self.token_var = tk.StringVar(value=f"当前Token:")
+        self.token_var = tk.StringVar(value=f"数据可能异常")
         self.token_entry = ttk.Entry(self.toolbar,
                                      textvariable=self.token_var,
                                      width=40,
@@ -93,23 +93,24 @@ class RouterDashboard:
         self.status_frame = ttk.LabelFrame(self.master, text="网络接口状态")
         self.status_frame.pack(pady=10, padx=20, fill=tk.X)
         net_definitions = [
-            ('wan_ip', "WAN IPv4"),
-            ('wan', "WAN 状态"),
-            ('wan_speed', "WAN 速度"),
-            ('lan_ip', "LAN IPv4"),
-            ('lan', "LAN 状态"),
-            ('lan_speed', "LAN 速度")
+            ('wan_ip', "上级分配IPv4"),
+            ('wanType', "上级上网方式"),
+            ('lan_ip', "下级分配IPv4"),
+            ('dnsAddrs', "DNS 地址1"),
+            ('dnsAddrs1', "DNS 地址2")
         ]
         self.net_labels = {
         }
         put_label_in_frame(net_definitions, self.net_labels, self.status_frame, 2)
 
-        self.system_frame = ttk.LabelFrame(self.master, text="系统状态")
+        self.system_frame = ttk.LabelFrame(self.master, text="动态数据")
         self.system_frame.pack(pady=10, padx=20, fill=tk.X)
 
         sys_definitions = [
             ('mem', "内存使用"),
-            ('devices', "在线设备")
+            ('devices', "在线设备"),
+            ('wan_speed', "WAN 速度"),
+            ('lan_speed', "LAN 速度")
         ]
         self.sys_labels = {
         }
@@ -145,13 +146,20 @@ class RouterDashboard:
         self.device_tree.pack(fill=tk.BOTH, expand=True)
 
         if self.precheck_data:
-            self.data = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_sys_status()
-            self._update_basic_data(self.init_info_labels)
-
+            self._update_basic_data(self.init_info_labels, self.precheck_data)
+            data = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_sys_status()
+            self._update_basic_data(self.init_info_labels, data)
+            informationdata = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_information()
+            self._update_basic_data(self.net_labels, informationdata)
         else:
             # Bug修复: 将字符串转换为Exception对象
             RouterLogger.log_error("Invalid precheck_data format",
                                    exception=Exception("Expected dict got " + str(type(self.precheck_data))))
+
+        self.up_net_data()
+
+    def up_net_data(self):
+        data = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_sys_status()
 
     def refresh_token(self):
         """执行完整的token刷新流程"""
@@ -242,19 +250,16 @@ class RouterDashboard:
         except Exception as e:
             messagebox.showerror("刷新失败", f"自动获取token失败:\n{str(e)}")
 
-    def _update_basic_data(self, label):
+    def _update_basic_data(self, label, data):
         try:
             for key, label in label.items():
-                value = getattr(self.precheck_data, key, None)
+                value = getattr(data, key, None)
                 if value is None:
-                    value = getattr(self.data, key, None)
+                    continue
                 if value == '1':
                     value = "是"
                 elif value == '0':
                     value = "否"
-                elif value is None:
-                    value = "no_data"
-                print(value)
                 label_text = label.cget("text").split(":")[0]
                 label.config(text=f"{label_text}: {value}")
             RouterLogger.log_operation("GUI_UPDATE", "基本信息面板更新完成")
@@ -310,7 +315,7 @@ class LoginWindow:
 
         def check_task():
             try:
-                data =api_invoke.NoTokenAPI(self.master, ip).get_init_info()
+                data = api_invoke.NoTokenAPI(self.master, ip).get_init_info()
                 self.master.after(0, self.status_label.config, {
                     'text': f'已发现路由器 {data.routername}',
                     'foreground': 'green'
@@ -334,7 +339,6 @@ class LoginWindow:
             return
 
         token = login_router(ip, pwd, key)
-        print(token)
         if token:
             self.master.destroy()
             RouterLogger.log_operation("登录成功", f"用户成功登录:{token}")
