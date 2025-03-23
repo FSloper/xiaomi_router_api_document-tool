@@ -39,7 +39,7 @@ class RouterDashboard:
         self.precheck_data = precheck_data  # 接收预检测数据
 
         master.title("小米路由器监控系统")
-        master.geometry("800x800")
+        master.geometry("1000x800")
 
         # 新增顶部工具栏
         self.toolbar = ttk.Frame(master)
@@ -107,10 +107,10 @@ class RouterDashboard:
 
         sys_definitions = [
             ('upTime', "运行时间"),
-            ('mem', "内存使用"),
-            ('devices', "在线设备"),
-            ('wan_speed', "WAN 速度"),
-            ('lan_speed', "LAN 速度")
+            ('usage', "内存使用"),
+            ('online', "在线设备"),
+            ('download', "下载速度"),
+            ('upspeed', "上传速度")
         ]
         self.sys_labels = {
         }
@@ -122,17 +122,19 @@ class RouterDashboard:
 
         # 创建Treeview表格
         self.device_tree = ttk.Treeview(self.device_frame,
-                                        columns=('IPv4地址', 'MAC地址', '设备名称', '上传速度', '下载速度', '在线时长'),
+                                        columns=('连接方式', 'MAC地址', '设备名称', 'IPv4地址', '上传速度', '下载速度',
+                                                 '在线时长'),
                                         show='headings')
 
         # 配置列参数
         columns_config = {
-            'IPv4地址': {'width': 150, 'anchor': tk.W},
+            '连接方式': {'width': 100},
             'MAC地址': {'width': 150, 'anchor': tk.W},
             '设备名称': {'width': 150},
+            'IPv4地址': {'width': 150, 'anchor': tk.W},
             '上传速度': {'width': 100},
             '下载速度': {'width': 100},
-            '在线时长': {'width': 100}
+            '在线时长': {'width': 100, 'anchor': tk.W}
         }
 
         for col, config in columns_config.items():
@@ -149,7 +151,7 @@ class RouterDashboard:
         self.up_net_data()
 
     def up_basic_data(self):
-        def _update_basic_data():
+        def update_data():
             if self.precheck_data:
                 self._update_basic_data(self.init_info_labels, self.precheck_data)
                 data = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_sys_status()
@@ -161,17 +163,51 @@ class RouterDashboard:
                 RouterLogger.log_error("Invalid precheck_data format",
                                        exception=Exception("Expected dict got " + str(type(self.precheck_data))))
 
-        threading.Thread(target=_update_basic_data, daemon=True).start()
+        threading.Thread(target=update_data, daemon=True).start()
 
     def up_net_data(self):
-        def _update_net_data():
-            if self.precheck_data:
-                self._update_basic_data(self.net_labels, self.precheck_data)
-                informationdata = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_information()
-                self._update_basic_data(self.net_labels, informationdata)
-            threading.Timer(5, _update_net_data).start()
+        def update_data():
+            data = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_sys_status()
+            # TODO 转换问题
+            self._update_basic_data(self.sys_labels, data)
+            devices = api_invoke.NeedTokenAPI(self.master, self.router_ip, self.token).get_device_list()
+            self.update_device_list(devices)
+            threading.Timer(5, update_data).start()
 
-        threading.Thread(target=_update_net_data, daemon=True).start()
+        threading.Thread(target=update_data, daemon=True).start()
+
+    def update_device_list(self, devices):
+        """更新设备列表数据"""
+        # 清空旧数据
+        for item in self.device_tree.get_children():
+            self.device_tree.delete(item)
+
+        # 填充新数据
+        for dev in devices:
+            self.device_tree.insert('', tk.END, values=(
+                dev['type'],
+                dev['mac'],
+                dev['name'],
+                dev['ip'],
+                f"{self.format_speed(dev['upspeed'])}",
+                f"{self.format_speed(dev['downspeed'])}",
+                self.format_online_time(dev['online'])
+            ))
+
+    def format_speed(self, speed):
+        """格式化速度显示 (B/s -> MB/s)"""
+        # TODO 转换问题
+        speed = float(speed)
+        if speed >= 100:
+            return f"{speed / 102400:.2f} MB/s"
+        else:
+            return f"{speed / 1024:.2f} KB/s"
+
+    def format_online_time(self, seconds):
+        """格式化在线时长"""
+        hours = int(float(seconds) // 3600)
+        minutes = int((float(seconds) % 3600) // 60)
+        return f"{hours}时{minutes:02}分"
 
     def refresh_token(self):
         """执行完整的token刷新流程"""

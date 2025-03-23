@@ -84,11 +84,11 @@ class SysStatus:
     core: str
     hz_cpu: str
     download: str
-    downspeed: str
-    maxdownloadspeed: str
-    upload: str
-    upspeed: str
-    maxuploadspeed: str
+    downspeed: int
+    maxdownloadspeed: int
+    upload: int
+    upspeed: int
+    maxuploadspeed: int
 
 
 @dataclass
@@ -274,3 +274,23 @@ class NeedTokenAPI:
         except Exception as e:
             RouterLogger.log_error("获取信息失败", e)
             raise
+
+    def get_device_list(self):
+        try:
+            data = self.client.get_device_list()
+            devices = []
+            for dev in data.get('list', []):
+                data = dev['statistics']
+                print(data)
+                devices.append({
+                    'type': dev.get('type', '未知连接方式'),
+                    'ip': dev.get('ip', '0.0.0.0'),
+                    'mac': dev.get('mac', 'N/A'),
+                    'name': dev.get('name', '未知设备'),
+                    'downspeed': data.get('downspeed', 0),  # 设备下载速度(B/s)
+                    'upspeed': data.get('upspeed', 0),  # 设备上传速度(B/s)
+                    'online': data.get('online', 0)
+                })
+            return devices
+        except Exception as e:
+            RouterLogger.log_error("获取设备列表失败", e)

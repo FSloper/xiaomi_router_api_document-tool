@@ -126,6 +126,10 @@ class APIClient:
         """获取路由器信息"""
         return self._request('xqsystem/information')
 
+    def get_device_list(self):
+        """获取设备列表"""
+        return self._request('xqsystem/device_list')
+
 class APIError(Exception):
     """自定义API异常"""
 
