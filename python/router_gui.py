@@ -8,6 +8,7 @@ import api_client
 import api_invoke
 from logger import RouterLogger
 from login_router import login_router
+from device_graph import DeviceGraphWindow
 
 
 def create_label(frame, text, row=0, column=0, padx=10, pady=5, sticky=tk.W):
@@ -42,6 +43,21 @@ class RouterDashboard:
         master.geometry("1000x800")
 
         # 新增顶部工具栏
+        # 创建主菜单栏
+        self.menu_bar = tk.Menu(self.master)
+        self.master.config(menu=self.menu_bar)
+
+        # 文件菜单
+        self.file_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.file_menu.add_command(label="退出", command=self.master.destroy)
+        self.menu_bar.add_cascade(label="文件", menu=self.file_menu)
+
+        # 设置菜单
+        self.settings_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.settings_menu.add_command(label="刷新Token", command=self.refresh_token)
+        self.settings_menu.add_command(label="重启路由器", command=self.reboot)
+        self.menu_bar.add_cascade(label="设置", menu=self.settings_menu)
+
         self.toolbar = ttk.Frame(master)
         self.toolbar.pack(side=tk.TOP, fill=tk.X, padx=20, pady=5)
 
@@ -58,6 +74,9 @@ class RouterDashboard:
                                      font=('Consolas', 10))
         self.token_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
         self.token_var.set(f"当前Token: {self.token}")
+
+        self.graph_btn = ttk.Button(self.toolbar, text="设备流量图表", command=self.show_device_graph)
+        self.graph_btn.pack(side=tk.LEFT, padx=5)
 
         self.rebot_btn = ttk.Button(self.toolbar, text="重启路由器", command=self.reboot)
         self.rebot_btn.pack(side=tk.LEFT, padx=5)
@@ -198,8 +217,8 @@ class RouterDashboard:
         """格式化速度显示 (B/s -> MB/s)"""
         # TODO 转换问题
         speed = float(speed)
-        if speed >= 100:
-            return f"{speed / 102400:.2f} MB/s"
+        if speed >= 1000000:
+            return f"{speed / 1024000:.2f} MB/s"
         else:
             return f"{speed / 1024:.2f} KB/s"
 
@@ -229,6 +248,9 @@ class RouterDashboard:
         except Exception as e:
             RouterLogger.log_error("刷新设备列表失败", e)
             messagebox.showerror("刷新失败", f"Token刷新失败:\n{str(e)}")
+
+    def show_device_graph(self):
+        DeviceGraphWindow(self.master, self.device_tree)
 
     def reboot(self):
         if not messagebox.askyesno("确认重启", "确定要重启路由器吗？该操作需要约3分钟完成"):

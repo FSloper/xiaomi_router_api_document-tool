@@ -281,7 +281,6 @@ class NeedTokenAPI:
             devices = []
             for dev in data.get('list', []):
                 data = dev['statistics']
-                print(data)
                 devices.append({
                     'type': dev.get('type', '未知连接方式'),
                     'ip': dev.get('ip', '0.0.0.0'),
